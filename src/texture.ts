@@ -1,5 +1,6 @@
-import { Vector2, Vector4 } from "@math.gl/core";
+import { Vector2 } from "@math.gl/core";
 import { Completer } from "./completer";
+import { Generator } from "./procedural_texture";
 
 export abstract class ITexture {
 
@@ -25,8 +26,6 @@ export abstract class ITexture {
     abstract get height(): number;
 
 }
-
-export type PixelGenerator = (pos: Vector2) => Vector4;
 
 export class Texture2D extends ITexture {
 
@@ -72,7 +71,7 @@ export class Texture2D extends ITexture {
         return compl.promise;
     }
 
-    static procedural(gl: WebGL2RenderingContext, width: number, height: number, func: PixelGenerator): Texture2D {
+    static procedural(gl: WebGL2RenderingContext, width: number, height: number, func: Generator): Texture2D {
         let tex = new Texture2D(gl, width, height, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE);
         tex.bind(0);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
@@ -80,13 +79,10 @@ export class Texture2D extends ITexture {
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 let v = func(new Vector2(x / width, y / height));
-                v.clampScalar(0.0, 1.0);
-
-                let vb = v.multiplyScalar(255);
-                data[(y * width + x) * 4 + 0] = ~~vb.x;
-                data[(y * width + x) * 4 + 1] = ~~vb.y;
-                data[(y * width + x) * 4 + 2] = ~~vb.z;
-                data[(y * width + x) * 4 + 3] = ~~vb.w;
+                data[(y * width + x) * 4 + 0] = ~~(v.r * 255);
+                data[(y * width + x) * 4 + 1] = ~~(v.g * 255);
+                data[(y * width + x) * 4 + 2] = ~~(v.b * 255);
+                data[(y * width + x) * 4 + 3] = ~~(v.a * 255);
             }
         }
         gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);

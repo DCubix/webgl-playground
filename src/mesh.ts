@@ -171,8 +171,8 @@ export class MeshBuilder {
         return this.vertices[this.vertices.length - 1];
     }
 
-    public addIndex(index: number) {
-        this.indices.push(index + this.offset);
+    public addIndex(index: number, withOffset: boolean = true) {
+        this.indices.push(index + (withOffset ? this.offset : 0));
     }
 
     public addTriangle(a: Vertex, b: Vertex, c: Vertex): MeshBuilder {
@@ -261,7 +261,7 @@ export class MeshBuilder {
         return this;
     }
 
-    public addCylinder(radius: number = 1, height: number = 1, segments: number = 32): MeshBuilder {
+    public addCylinder(radius: number = 0.5, height: number = 1, segments: number = 24): MeshBuilder {
         if (segments < 3) {
             throw new Error('MeshBuilder.addCylinder: segments must be greater than 2');
         }
@@ -275,7 +275,7 @@ export class MeshBuilder {
                 const z = Math.sin(angle) * radius;
 
                 let v = mb.addVertex(new Vertex(new Vector3(x, 0, z).add(center)));
-                v.uv = new Vector2(i / segments, uv_v);
+                v.uv = new Vector2((i / segments) * 2.0, uv_v);
 
                 if (i > 0 && buildTriangles) {
                     const baseIndex = mb.vertices.length - 1;
@@ -285,12 +285,12 @@ export class MeshBuilder {
                         baseIndex, baseIndex - 1, baseIndex - vertsPerRow, baseIndex - vertsPerRow - 1
                     ];
 
-                    mb.addIndex(indices[1]);
-                    mb.addIndex(indices[2]);
-                    mb.addIndex(indices[0]);
-                    mb.addIndex(indices[1]);
-                    mb.addIndex(indices[3]);
-                    mb.addIndex(indices[2]);
+                    mb.addIndex(indices[1], false);
+                    mb.addIndex(indices[2], false);
+                    mb.addIndex(indices[0], false);
+                    mb.addIndex(indices[1], false);
+                    mb.addIndex(indices[3], false);
+                    mb.addIndex(indices[2], false);
                 }
             }
 
@@ -306,12 +306,12 @@ export class MeshBuilder {
                     vertsPerRow - 1,
                 ];
 
-                mb.addIndex(indices[1]);
-                mb.addIndex(indices[2]);
-                mb.addIndex(indices[0]);
-                mb.addIndex(indices[1]);
-                mb.addIndex(indices[3]);
-                mb.addIndex(indices[2]);
+                mb.addIndex(indices[1], false);
+                mb.addIndex(indices[2], false);
+                mb.addIndex(indices[0], false);
+                mb.addIndex(indices[1], false);
+                mb.addIndex(indices[3], false);
+                mb.addIndex(indices[2], false);
             }
         }
 
@@ -323,11 +323,11 @@ export class MeshBuilder {
 
             for (let i = 0; i <= segments; i++) {
                 const angle = i * step;
-                const x = Math.cos(angle) * radius;
-                const z = Math.sin(angle) * radius;
+                const x = Math.cos(angle);
+                const z = Math.sin(angle);
 
-                let v = mb.addVertex(new Vertex(new Vector3(x, 0, z).add(center)));
-                v.uv = new Vector2(x / radius, z / radius);
+                let v = mb.addVertex(new Vertex(new Vector3(x * radius, 0, z * radius).add(center)));
+                v.uv = new Vector2(x * 0.5 + 0.5, z * 0.5 + 0.5);
 
                 if (i > 0) {
                     const baseIndex = mb.vertices.length - 1;
@@ -338,9 +338,9 @@ export class MeshBuilder {
                         centerIndex, baseIndex, baseIndex - 1
                     ];
 
-                    mb.addIndex(indices[0]);
-                    mb.addIndex(indices[1]);
-                    mb.addIndex(indices[2]);
+                    mb.addIndex(indices[0], false);
+                    mb.addIndex(indices[1], false);
+                    mb.addIndex(indices[2], false);
                 }
             }
         }

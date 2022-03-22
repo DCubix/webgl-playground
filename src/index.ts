@@ -1,9 +1,8 @@
 import { Display } from "./display";
 import { Matrix4, Shader } from "./shader";
 import { Mesh, MeshBuilder } from "./mesh";
-import { PixelGenerator, Texture2D } from "./texture";
-import { sin, Vector2, Vector4 } from "@math.gl/core";
-import { Perlin } from "libnoise-ts/module/generator";
+import { Texture2D } from "./texture";
+import { blend, BlendMode, bricks, circle, Color, deform, mix, perlin, polygon, scalar, smoothStep, solid, threshold } from "./procedural_texture";
 
 let display = new Display(null);
 
@@ -58,87 +57,30 @@ async function init() {
                         .link();
 
     // let tex = await Texture2D.fromImage(display.gl!, "me.jpg");
-    const perlin = new Perlin();
 
-    function checker(p: Vector2): Vector4 {
-        const size = 0.25;
-        let nx = Math.floor(p.x / size);
-        let ny = Math.floor(p.y / size);
-        let v = (nx + ny) % 2 === 0 ? 1.0 : 0.0;
-        return new Vector4(v, v, v, 1);
-    }
+    let redDonut = mix(
+        solid(Color.fromHex("#ffff00")),
+        solid(Color.fromHex("#ff0000")),
+        deform(
+            smoothStep(
+                0.3, 0.31,
+                blend(
+                    circle(0.5),
+                    circle(0.28),
+                    BlendMode.Subtract
+                )
+            ),
+            perlin(2, 2),
+            0.04
+        )
+    );
+    let texGen = mix(
+        solid(Color.fromHex("#363b45")),
+        solid(Color.fromHex("#94544d")),
+        bricks(4.0, 8.0)
+    );
+    let tex = Texture2D.procedural(display.gl!, 256, 256, blend(texGen, redDonut, BlendMode.Multiply));
 
-    function bricks(p: Vector2): Vector4 {
-        const sizeX = 5.0;
-        const sizeY = 8.0;
-        const gap = 0.01;
-        const smooth = 0.05;
-
-        let uu = p.x * sizeX;
-        let vv = p.y * sizeY;
-
-        if ((vv * 0.5 - Math.floor(vv * 0.5)) >= 0.5)
-			uu += 0.5;
-
-        if (uu >= sizeX) uu -= sizeX;
-        if (vv >= sizeY) vv -= sizeY;
-
-        let x = uu - Math.floor(uu);
-        let y = vv - Math.floor(vv);
-
-        let inside = true;
-        if (gap > 0.0) {
-            inside &&= x > gap * sizeX;
-            inside &&= y > gap * sizeY;
-        }
-
-        let v = 1.0;
-        if (inside) {
-            let dist = Math.min(Math.min(x - gap * sizeX, 1.0 - x) / sizeX, Math.min(y - gap * sizeY, 1.0 - y) / sizeY);
-            dist *= Math.min(sizeX, sizeY);
-
-            if (dist < smooth) {
-                v *= dist / smooth;
-            }
-        } else v = 0.0;
-        
-        return new Vector4(v, v, v, 1);
-    }
-
-    function perlinNoise(p: Vector2): Vector4 {
-        let v = perlin.getValue(p.x, p.y, 0);
-        return new Vector4(v, v, v, 1);
-    }
-
-    function mix(a: Vector4, b: Vector4, f: number): Vector4 {
-        return new Vector4(
-            a.x * (1.0 - f) + b.x * f,
-            a.y * (1.0 - f) + b.y * f,
-            a.z * (1.0 - f) + b.z * f,
-            a.w * (1.0 - f) + b.w * f
-        );
-    }
-
-    function warp(p: Vector2): Vector4 {
-        const intens = 0.05;
-        let w = perlinNoise(p).x;
-
-        let c = p.clone();
-        c.x = c.x + (w - 0.5) * intens;
-        c.y = c.y + (w - 0.5) * -intens;
-        
-        let col = bricks(c).x;
-
-        let brickColor = new Vector4(0.7, 0.3, 0.0, 1);
-        let cementColor = new Vector4(0.2, 0.2, 0.2, 1);
-        let dirtColor = new Vector4(0.3, 0.15, 0.0, 1.0);
-
-        let dirtAmt = perlin.getValue(p.x * 3.0, p.y * 3.0, 0) * 0.5;
-
-        return mix(mix(cementColor, brickColor, col), dirtColor, dirtAmt);
-    }
-
-    let tex = Texture2D.procedural(display.gl!, 256, 256, warp);
     tex.setFiltering(display.gl!.LINEAR_MIPMAP_LINEAR, display.gl!.LINEAR);
     let mesh = new MeshBuilder().addCube().recalculateNormals().build(display.gl!);
 

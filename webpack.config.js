@@ -8,7 +8,7 @@ module.exports = {
     },
     output: {
         path: path.resolve(__dirname, './dist'),
-        filename: "snake.js"
+        filename: "game.js"
     },
     resolve: {
         extensions: [".ts", ".tsx", ".js"],
