@@ -1,4 +1,4 @@
-import { Vector2, Matrix3 } from "@math.gl/core";
+import { Vector2, Matrix3, Vector3 } from "@math.gl/core";
 import { Perlin, Voronoi } from "libnoise-ts/module/generator";
 
 function lerpScalar(a: number, b: number, t: number): number {
@@ -144,7 +144,7 @@ export function voronoi(sizeX: number, sizeY: number): Generator {
     };
 }
 
-export function bricks(sizeX: number, sizeY: number, xoffset: number = 0.5, gap: number = 0.01, smooth: number = 0.03, lightness: number = 0.5): Generator {
+export function bricks(sizeX: number, sizeY: number, xoffset: number = 0.5, gap: number = 0.01, smooth: number = 0.03): Generator {
     return function(p: Vector2): Color {
         let uu = p.x * sizeX;
         let vv = p.y * sizeY;
@@ -173,12 +173,12 @@ export function bricks(sizeX: number, sizeY: number, xoffset: number = 0.5, gap:
                 v *= dist / smooth;
             }
 
-            let brickIdX = Math.floor(uu);
-            const brickIdY = Math.floor(vv);
+            // let brickIdX = Math.floor(uu);
+            // const brickIdY = Math.floor(vv);
 
-            if (brickIdX > sizeX) brickIdX = 0;
+            // if (brickIdX > sizeX) brickIdX = 0;
 
-            v *= rand(brickIdX * 0.01, brickIdY * 0.01);
+            // v *= rand(brickIdX * 0.01, brickIdY * 0.01);
         } else v = 0.0;
 
         return new Color(v, v, v, 1);
@@ -317,5 +317,85 @@ export function blend(a: Generator, b: Generator, mode: BlendMode): Generator {
                 );
         }
         return va;
+    };
+}
+
+export function normalMap(input: Generator, width: number, height: number, strength: number = 1): Generator {
+    return function(p: Vector2): Color {
+        const epx = 1.0 / width, epy = 1.0 / height;
+        const d0 = Math.abs(input(p).luma);
+        const d1 = Math.abs(input(new Vector2(p.x + epx, p.y)).luma) * strength / 2.0;
+        const d2 = Math.abs(input(new Vector2(p.x - epx, p.y)).luma) * strength / 2.0;
+        const d3 = Math.abs(input(new Vector2(p.x, p.y + epy)).luma) * strength / 2.0;
+        const d4 = Math.abs(input(new Vector2(p.x, p.y - epy)).luma) * strength / 2.0;
+        const dx = ((d2 - d0) + (d0 - d1)) * 0.5;
+        const dy = ((d4 - d0) + (d0 - d3)) * 0.5;
+        const n = new Vector3(dx, dy, 1.0).normalize();
+        return new Color(n.x * 0.5 + 0.5, n.y * 0.5 + 0.5, n.z * 0.5 + 0.5);
+    };
+}
+
+export enum Filter {
+    Nearest,
+    Linear
+}
+
+export function sample(image: ImageData, filter: Filter = Filter.Nearest): Generator {
+    return function(p: Vector2): Color {
+        switch (filter) {
+            case Filter.Nearest: {
+                const x = Math.floor(p.x * image.width);
+                const y = Math.floor(p.y * image.height);
+                const i = (y * image.width + x) * 4;
+                return new Color(
+                    image.data[i + 0] / 255.0,
+                    image.data[i + 1] / 255.0,
+                    image.data[i + 2] / 255.0,
+                    image.data[i + 3] / 255.0
+                );
+            }
+            case Filter.Linear: {
+                const x0 = Math.floor(p.x * image.width);
+                const y0 = Math.floor(p.y * image.height);
+                const x1 = x0 + 1;
+                const y1 = y0 + 1;
+                const x = p.x * image.width - x0;
+                const y = p.y * image.height - y0;
+                const i0 = (y0 * image.width + x0) * 4;
+                const i1 = (y0 * image.width + x1) * 4;
+                const i2 = (y1 * image.width + x0) * 4;
+                const i3 = (y1 * image.width + x1) * 4;
+                const c0 = new Color(
+                    image.data[i0 + 0] / 255.0,
+                    image.data[i0 + 1] / 255.0,
+                    image.data[i0 + 2] / 255.0,
+                    image.data[i0 + 3] / 255.0
+                );
+                const c1 = new Color(
+                    image.data[i1 + 0] / 255.0,
+                    image.data[i1 + 1] / 255.0,
+                    image.data[i1 + 2] / 255.0,
+                    image.data[i1 + 3] / 255.0
+                );
+                const c2 = new Color(
+                    image.data[i2 + 0] / 255.0,
+                    image.data[i2 + 1] / 255.0,
+                    image.data[i2 + 2] / 255.0,
+                    image.data[i2 + 3] / 255.0
+                );
+                const c3 = new Color(
+                    image.data[i3 + 0] / 255.0,
+                    image.data[i3 + 1] / 255.0,
+                    image.data[i3 + 2] / 255.0,
+                    image.data[i3 + 3] / 255.0
+                );
+                return new Color(
+                    c0.r * (1.0 - x) * (1.0 - y) + c1.r * x * (1.0 - y) + c2.r * (1.0 - x) * y + c3.r * x * y,
+                    c0.g * (1.0 - x) * (1.0 - y) + c1.g * x * (1.0 - y) + c2.g * (1.0 - x) * y + c3.g * x * y,
+                    c0.b * (1.0 - x) * (1.0 - y) + c1.b * x * (1.0 - y) + c2.b * (1.0 - x) * y + c3.b * x * y,
+                    c0.a * (1.0 - x) * (1.0 - y) + c1.a * x * (1.0 - y) + c2.a * (1.0 - x) * y + c3.a * x * y
+                );
+            }
+        }
     };
 }

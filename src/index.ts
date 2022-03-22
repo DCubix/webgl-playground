@@ -2,7 +2,8 @@ import { Display } from "./display";
 import { Matrix4, Shader } from "./shader";
 import { Mesh, MeshBuilder } from "./mesh";
 import { Texture2D } from "./texture";
-import { blend, BlendMode, bricks, circle, Color, deform, mix, perlin, polygon, scalar, smoothStep, solid, threshold } from "./procedural_texture";
+import { blend, BlendMode, bricks, circle, Color, deform, Filter, mix, normalMap, perlin, polygon, sample, scalar, smoothStep, solid, threshold } from "./procedural_texture";
+import { loadImage } from "./loaders";
 
 let display = new Display(null);
 
@@ -58,9 +59,11 @@ async function init() {
 
     // let tex = await Texture2D.fromImage(display.gl!, "me.jpg");
 
+    let img = await loadImage("me.jpg");
+
     let redDonut = mix(
         solid(Color.fromHex("#ffff00")),
-        solid(Color.fromHex("#ff0000")),
+        sample(img, Filter.Linear),
         deform(
             smoothStep(
                 0.3, 0.31,
@@ -79,7 +82,7 @@ async function init() {
         solid(Color.fromHex("#94544d")),
         bricks(4.0, 8.0)
     );
-    let tex = Texture2D.procedural(display.gl!, 256, 256, blend(texGen, redDonut, BlendMode.Multiply));
+    let tex = Texture2D.procedural(display.gl!, 256, 256, redDonut);
 
     tex.setFiltering(display.gl!.LINEAR_MIPMAP_LINEAR, display.gl!.LINEAR);
     let mesh = new MeshBuilder().addCube().recalculateNormals().build(display.gl!);
